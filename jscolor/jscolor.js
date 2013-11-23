@@ -93,7 +93,7 @@ var jscolor = {
 				prop = {};
 				if (m[3]) {
 					try {
-						prop = (new Function ('return (' + m[3] + ')'))();
+						prop = JSON.parse(m[3]);
 					} catch(eInvalidProp) {}
 				}
 				e[i].color = new jscolor.color(e[i], prop);
@@ -361,7 +361,7 @@ var jscolor = {
 		this.slider = true; // show the value/saturation slider?
 		this.valueElement = target; // value holder
 		this.styleElement = target; // where to reflect current color
-		this.onImmediateChange = null; // onchange callback (can be either string or function)
+		this.onImmediateChange = null; // onchange callback (must be a function)
 		this.hsv = [0, 0, 1]; // read-only  0-6, 0-1, 0-1
 		this.rgb = [1, 1, 1]; // read-only  0-1, 0-1, 0-1
 		this.minH = 0; // read-only  0-6
@@ -1001,15 +1001,8 @@ var jscolor = {
 		}
 
 		function dispatchImmediateChange() {
-			var callback;
-
-			if (THIS.onImmediateChange) {
-				if (typeof THIS.onImmediateChange === 'string') {
-					callback = new Function (THIS.onImmediateChange);
-				} else {
-					callback = THIS.onImmediateChange;
-				}
-				callback.call(THIS);
+			if (typeof THIS.onImmediateChange === 'function') {
+				THIS.onImmediateChange.call(THIS);
 			}
 		}
 
