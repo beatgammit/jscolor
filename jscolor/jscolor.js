@@ -31,327 +31,10 @@
  * @link    http://jscolor.com
  */
 
-var jscolor = {
-	dir : '', // location of jscolor directory (leave empty to autodetect)
-	bindClass : 'color', // class name
-	binding : true, // automatic binding via <input class="...">
-	preloading : true, // use image preloading?
-
-	install : function() {
-		jscolor.addEvent(window, 'load', jscolor.init);
-	},
-
-	init : function() {
-		if (jscolor.binding) {
-			jscolor.bind();
-		}
-		if (jscolor.preloading) {
-			jscolor.preload();
-		}
-	},
-
-	getDir : function() {
-		var detected;
-
-		if (!jscolor.dir) {
-			detected = jscolor.detectDir();
-			jscolor.dir = detected!==false ? detected : 'jscolor/';
-		}
-		return jscolor.dir;
-	},
-
-	detectDir : function() {
-		var base = location.href,
-			e = document.getElementsByTagName('base'),
-			i;
-
-		for (i = 0; i < e.length; i++) {
-			if (e[i].href) { base = e[i].href; }
-		}
-
-		e = document.getElementsByTagName('script');
-		for (i = 0; i < e.length; i++) {
-			if (e[i].src && /(^|\/)jscolor\.js([?#].*)?$/i.test(e[i].src)) {
-				var src = new jscolor.URI(e[i].src);
-				var srcAbs = src.toAbsolute(base);
-				srcAbs.path = srcAbs.path.replace(/[^\/]+$/, ''); // remove filename
-				srcAbs.query = null;
-				srcAbs.fragment = null;
-				return srcAbs.toString();
-			}
-		}
-		return false;
-	},
-
-	bind : function() {
-		var matchClass = new RegExp('(^|\\s)(' + jscolor.bindClass + ')\\s*(\\{[^}]*\\})?', 'i'),
-			e = document.getElementsByTagName('input'),
-			i, m, prop;
-
-		for (i = 0; i < e.length; i++) {
-			if (!e[i].color && e[i].className && (m = e[i].className.match(matchClass))) {
-				prop = {};
-				if (m[3]) {
-					try {
-						prop = JSON.parse(m[3]);
-					} catch(eInvalidProp) {}
-				}
-				e[i].color = new jscolor.color(e[i], prop);
-			}
-		}
-	},
-
-	preload : function() {
-		var fn;
-
-		for (fn in jscolor.imgRequire) {
-			if (jscolor.imgRequire.hasOwnProperty(fn)) {
-				jscolor.loadImage(fn);
-			}
-		}
-	},
-
-	images : {
-		pad : [ 181, 101 ],
-		sld : [ 16, 101 ],
-		cross : [ 15, 15 ],
-		arrow : [ 7, 11 ]
-	},
-
-	imgRequire : {},
-	imgLoaded : {},
-
-	requireImage : function(filename) {
-		jscolor.imgRequire[filename] = true;
-	},
-
-	loadImage : function(filename) {
-		if (!jscolor.imgLoaded[filename]) {
-			jscolor.imgLoaded[filename] = new Image();
-			jscolor.imgLoaded[filename].src = jscolor.getDir() + filename;
-		}
-	},
-
-	fetchElement : function(mixed) {
-		return typeof mixed === 'string' ? document.getElementById(mixed) : mixed;
-	},
-
-	addEvent : function(el, evnt, func) {
-		if (el.addEventListener) {
-			el.addEventListener(evnt, func, false);
-		} else if (el.attachEvent) {
-			el.attachEvent('on' + evnt, func);
-		}
-	},
-
-	fireEvent : function(el, evnt) {
-		var ev;
-
-		if (!el) {
-			return;
-		}
-		if (document.createEvent) {
-			ev = document.createEvent('HTMLEvents');
-			ev.initEvent(evnt, true, true);
-			el.dispatchEvent(ev);
-		} else if (document.createEventObject) {
-			ev = document.createEventObject();
-			el.fireEvent('on' + evnt, ev);
-		} else if (el['on' + evnt]) { // alternatively use the traditional event model (IE5)
-			el['on' + evnt]();
-		}
-	},
-
-	getElementPos : function(e) {
-		var e1 = e, e2 = e,
-			x = 0, y = 0;
-
-		if (e1.offsetParent) {
-			do {
-				x += e1.offsetLeft;
-				y += e1.offsetTop;
-
-				e1 = e1.offsetParent;
-			} while (e1);
-		}
-		while ((e2 = e2.parentNode) && e2.nodeName.toUpperCase() !== 'BODY') {
-			x -= e2.scrollLeft;
-			y -= e2.scrollTop;
-		}
-		return [x, y];
-	},
-
-	getElementSize : function(e) {
-		return [e.offsetWidth, e.offsetHeight];
-	},
-
-	getRelMousePos : function(e) {
-		var x = 0, y = 0;
-
-		if (!e) {
-			e = window.event;
-		}
-		if (typeof e.offsetX === 'number') {
-			x = e.offsetX;
-			y = e.offsetY;
-		} else if (typeof e.layerX === 'number') {
-			x = e.layerX;
-			y = e.layerY;
-		}
-		return { x: x, y: y };
-	},
-
-	getViewPos : function() {
-		if (typeof window.pageYOffset === 'number') {
-			return [window.pageXOffset, window.pageYOffset];
-		} else if (document.body && (document.body.scrollLeft || document.body.scrollTop)) {
-			return [document.body.scrollLeft, document.body.scrollTop];
-		} else if (document.documentElement && (document.documentElement.scrollLeft || document.documentElement.scrollTop)) {
-			return [document.documentElement.scrollLeft, document.documentElement.scrollTop];
-		} else {
-			return [0, 0];
-		}
-	},
-
-	getViewSize : function() {
-		if (typeof window.innerWidth === 'number') {
-			return [window.innerWidth, window.innerHeight];
-		} else if (document.body && (document.body.clientWidth || document.body.clientHeight)) {
-			return [document.body.clientWidth, document.body.clientHeight];
-		} else if (document.documentElement && (document.documentElement.clientWidth || document.documentElement.clientHeight)) {
-			return [document.documentElement.clientWidth, document.documentElement.clientHeight];
-		} else {
-			return [0, 0];
-		}
-	},
-
-	URI : function(uri) { // See RFC3986
-		this.scheme = null;
-		this.authority = null;
-		this.path = '';
-		this.query = null;
-		this.fragment = null;
-
-		this.parse = function(uri) {
-			var m = uri.match(/^(([A-Za-z][0-9A-Za-z+.-]*)(:))?((\/\/)([^\/?#]*))?([^?#]*)((\?)([^#]*))?((#)(.*))?/);
-
-			this.scheme = m[3] ? m[2] : null;
-			this.authority = m[5] ? m[6] : null;
-			this.path = m[7];
-			this.query = m[9] ? m[10] : null;
-			this.fragment = m[12] ? m[13] : null;
-			return this;
-		};
-
-		this.toString = function() {
-			var result = '';
-
-			if (this.scheme !== null) {
-				result = result + this.scheme + ':';
-			}
-			if (this.authority !== null) {
-				result = result + '//' + this.authority;
-			}
-			if (this.path !== null) {
-				result = result + this.path;
-			}
-			if (this.query !== null) {
-				result = result + '?' + this.query;
-			}
-			if (this.fragment !== null) {
-				result = result + '#' + this.fragment;
-			}
-			return result;
-		};
-
-		this.toAbsolute = function(base) {
-			var r = this,
-				t = new jscolor.URI();
-
-			base = new jscolor.URI(base);
-			if (base.scheme === null) {
-				return false;
-			}
-
-			if (r.scheme !== null && r.scheme.toLowerCase() === base.scheme.toLowerCase()) {
-				r.scheme = null;
-			}
-
-			if (r.scheme !== null) {
-				t.scheme = r.scheme;
-				t.authority = r.authority;
-				t.path = removeDotSegments(r.path);
-				t.query = r.query;
-			} else {
-				if (r.authority !== null) {
-					t.authority = r.authority;
-					t.path = removeDotSegments(r.path);
-					t.query = r.query;
-				} else {
-					if (r.path === '') {
-						t.path = base.path;
-						if (r.query !== null) {
-							t.query = r.query;
-						} else {
-							t.query = base.query;
-						}
-					} else {
-						if (r.path.substr(0,1) === '/') {
-							t.path = removeDotSegments(r.path);
-						} else {
-							if (base.authority !== null && base.path === '') {
-								t.path = '/' + r.path;
-							} else {
-								t.path = base.path.replace(/[^\/]+$/,'') + r.path;
-							}
-							t.path = removeDotSegments(t.path);
-						}
-						t.query = r.query;
-					}
-					t.authority = base.authority;
-				}
-				t.scheme = base.scheme;
-			}
-			t.fragment = r.fragment;
-
-			return t;
-		};
-
-		function removeDotSegments(path) {
-			var out = '',
-				rm;
-
-			while (path) {
-				if (path.substr(0,3) === '../' || path.substr(0,2) === './') {
-					path = path.replace(/^\.+/,'').substr(1);
-				} else if (path.substr(0,3)==='/./' || path==='/.') {
-					path = '/' + path.substr(3);
-				} else if (path.substr(0,4) === '/../' || path === '/..') {
-					path = '/' + path.substr(4);
-					out = out.replace(/\/?[^\/]*$/, '');
-				} else if (path === '.' || path === '..') {
-					path = '';
-				} else {
-					rm = path.match(/^\/?[^\/]*/)[0];
-					path = path.substr(rm.length);
-					out = out + rm;
-				}
-			}
-			return out;
-		}
-
-		if (uri) {
-			this.parse(uri);
-		}
-
-	},
-
-	//
+(function () {
 	// Usage example:
 	// var myColor = new jscolor.color(myInputElement)
-	//
-
-	color : function(target, prop) {
+	function Color(target, prop) {
 		var p;
 
 		this.required = true; // refuse empty values?
@@ -1075,6 +758,324 @@ var jscolor = {
 		this.importColor();
 	}
 
-};
+	var jscolor = {
+		dir : '', // location of jscolor directory (leave empty to autodetect)
+		bindClass : 'color', // class name
+		binding : true, // automatic binding via <input class="...">
+		preloading : true, // use image preloading?
 
-jscolor.install();
+		install : function() {
+			jscolor.addEvent(window, 'load', jscolor.init);
+		},
+
+		init : function() {
+			if (jscolor.binding) {
+				jscolor.bind();
+			}
+			if (jscolor.preloading) {
+				jscolor.preload();
+			}
+		},
+
+		getDir : function() {
+			var detected;
+
+			if (!jscolor.dir) {
+				detected = jscolor.detectDir();
+				jscolor.dir = detected!==false ? detected : 'jscolor/';
+			}
+			return jscolor.dir;
+		},
+
+		detectDir : function() {
+			var base = location.href,
+				e = document.getElementsByTagName('base'),
+				i;
+
+			for (i = 0; i < e.length; i++) {
+				if (e[i].href) { base = e[i].href; }
+			}
+
+			e = document.getElementsByTagName('script');
+			for (i = 0; i < e.length; i++) {
+				if (e[i].src && /(^|\/)jscolor\.js([?#].*)?$/i.test(e[i].src)) {
+					var src = new jscolor.URI(e[i].src);
+					var srcAbs = src.toAbsolute(base);
+					srcAbs.path = srcAbs.path.replace(/[^\/]+$/, ''); // remove filename
+					srcAbs.query = null;
+					srcAbs.fragment = null;
+					return srcAbs.toString();
+				}
+			}
+			return false;
+		},
+
+		bind : function() {
+			var matchClass = new RegExp('(^|\\s)(' + jscolor.bindClass + ')\\s*(\\{[^}]*\\})?', 'i'),
+				e = document.getElementsByTagName('input'),
+				i, m, prop;
+
+			for (i = 0; i < e.length; i++) {
+				if (!e[i].color && e[i].className && (m = e[i].className.match(matchClass))) {
+					prop = {};
+					if (m[3]) {
+						try {
+							prop = JSON.parse(m[3]);
+						} catch(eInvalidProp) {}
+					}
+					e[i].color = new Color(e[i], prop);
+				}
+			}
+		},
+
+		preload : function() {
+			var fn;
+
+			for (fn in jscolor.imgRequire) {
+				if (jscolor.imgRequire.hasOwnProperty(fn)) {
+					jscolor.loadImage(fn);
+				}
+			}
+		},
+
+		images : {
+			pad : [ 181, 101 ],
+			sld : [ 16, 101 ],
+			cross : [ 15, 15 ],
+			arrow : [ 7, 11 ]
+		},
+
+		imgRequire : {},
+		imgLoaded : {},
+
+		requireImage : function(filename) {
+			jscolor.imgRequire[filename] = true;
+		},
+
+		loadImage : function(filename) {
+			if (!jscolor.imgLoaded[filename]) {
+				jscolor.imgLoaded[filename] = new Image();
+				jscolor.imgLoaded[filename].src = jscolor.getDir() + filename;
+			}
+		},
+
+		fetchElement : function(mixed) {
+			return typeof mixed === 'string' ? document.getElementById(mixed) : mixed;
+		},
+
+		addEvent : function(el, evnt, func) {
+			if (el.addEventListener) {
+				el.addEventListener(evnt, func, false);
+			} else if (el.attachEvent) {
+				el.attachEvent('on' + evnt, func);
+			}
+		},
+
+		fireEvent : function(el, evnt) {
+			var ev;
+
+			if (!el) {
+				return;
+			}
+			if (document.createEvent) {
+				ev = document.createEvent('HTMLEvents');
+				ev.initEvent(evnt, true, true);
+				el.dispatchEvent(ev);
+			} else if (document.createEventObject) {
+				ev = document.createEventObject();
+				el.fireEvent('on' + evnt, ev);
+			} else if (el['on' + evnt]) { // alternatively use the traditional event model (IE5)
+				el['on' + evnt]();
+			}
+		},
+
+		getElementPos : function(e) {
+			var e1 = e, e2 = e,
+				x = 0, y = 0;
+
+			if (e1.offsetParent) {
+				do {
+					x += e1.offsetLeft;
+					y += e1.offsetTop;
+
+					e1 = e1.offsetParent;
+				} while (e1);
+			}
+			while ((e2 = e2.parentNode) && e2.nodeName.toUpperCase() !== 'BODY') {
+				x -= e2.scrollLeft;
+				y -= e2.scrollTop;
+			}
+			return [x, y];
+		},
+
+		getElementSize : function(e) {
+			return [e.offsetWidth, e.offsetHeight];
+		},
+
+		getRelMousePos : function(e) {
+			var x = 0, y = 0;
+
+			if (!e) {
+				e = window.event;
+			}
+			if (typeof e.offsetX === 'number') {
+				x = e.offsetX;
+				y = e.offsetY;
+			} else if (typeof e.layerX === 'number') {
+				x = e.layerX;
+				y = e.layerY;
+			}
+			return { x: x, y: y };
+		},
+
+		getViewPos : function() {
+			if (typeof window.pageYOffset === 'number') {
+				return [window.pageXOffset, window.pageYOffset];
+			} else if (document.body && (document.body.scrollLeft || document.body.scrollTop)) {
+				return [document.body.scrollLeft, document.body.scrollTop];
+			} else if (document.documentElement && (document.documentElement.scrollLeft || document.documentElement.scrollTop)) {
+				return [document.documentElement.scrollLeft, document.documentElement.scrollTop];
+			} else {
+				return [0, 0];
+			}
+		},
+
+		getViewSize : function() {
+			if (typeof window.innerWidth === 'number') {
+				return [window.innerWidth, window.innerHeight];
+			} else if (document.body && (document.body.clientWidth || document.body.clientHeight)) {
+				return [document.body.clientWidth, document.body.clientHeight];
+			} else if (document.documentElement && (document.documentElement.clientWidth || document.documentElement.clientHeight)) {
+				return [document.documentElement.clientWidth, document.documentElement.clientHeight];
+			} else {
+				return [0, 0];
+			}
+		},
+
+		URI : function(uri) { // See RFC3986
+			this.scheme = null;
+			this.authority = null;
+			this.path = '';
+			this.query = null;
+			this.fragment = null;
+
+			this.parse = function(uri) {
+				var m = uri.match(/^(([A-Za-z][0-9A-Za-z+.-]*)(:))?((\/\/)([^\/?#]*))?([^?#]*)((\?)([^#]*))?((#)(.*))?/);
+
+				this.scheme = m[3] ? m[2] : null;
+				this.authority = m[5] ? m[6] : null;
+				this.path = m[7];
+				this.query = m[9] ? m[10] : null;
+				this.fragment = m[12] ? m[13] : null;
+				return this;
+			};
+
+			this.toString = function() {
+				var result = '';
+
+				if (this.scheme !== null) {
+					result = result + this.scheme + ':';
+				}
+				if (this.authority !== null) {
+					result = result + '//' + this.authority;
+				}
+				if (this.path !== null) {
+					result = result + this.path;
+				}
+				if (this.query !== null) {
+					result = result + '?' + this.query;
+				}
+				if (this.fragment !== null) {
+					result = result + '#' + this.fragment;
+				}
+				return result;
+			};
+
+			this.toAbsolute = function(base) {
+				var r = this,
+					t = new jscolor.URI();
+
+				base = new jscolor.URI(base);
+				if (base.scheme === null) {
+					return false;
+				}
+
+				if (r.scheme !== null && r.scheme.toLowerCase() === base.scheme.toLowerCase()) {
+					r.scheme = null;
+				}
+
+				if (r.scheme !== null) {
+					t.scheme = r.scheme;
+					t.authority = r.authority;
+					t.path = removeDotSegments(r.path);
+					t.query = r.query;
+				} else {
+					if (r.authority !== null) {
+						t.authority = r.authority;
+						t.path = removeDotSegments(r.path);
+						t.query = r.query;
+					} else {
+						if (r.path === '') {
+							t.path = base.path;
+							if (r.query !== null) {
+								t.query = r.query;
+							} else {
+								t.query = base.query;
+							}
+						} else {
+							if (r.path.substr(0,1) === '/') {
+								t.path = removeDotSegments(r.path);
+							} else {
+								if (base.authority !== null && base.path === '') {
+									t.path = '/' + r.path;
+								} else {
+									t.path = base.path.replace(/[^\/]+$/,'') + r.path;
+								}
+								t.path = removeDotSegments(t.path);
+							}
+							t.query = r.query;
+						}
+						t.authority = base.authority;
+					}
+					t.scheme = base.scheme;
+				}
+				t.fragment = r.fragment;
+
+				return t;
+			};
+
+			function removeDotSegments(path) {
+				var out = '',
+					rm;
+
+				while (path) {
+					if (path.substr(0,3) === '../' || path.substr(0,2) === './') {
+						path = path.replace(/^\.+/,'').substr(1);
+					} else if (path.substr(0,3)==='/./' || path==='/.') {
+						path = '/' + path.substr(3);
+					} else if (path.substr(0,4) === '/../' || path === '/..') {
+						path = '/' + path.substr(4);
+						out = out.replace(/\/?[^\/]*$/, '');
+					} else if (path === '.' || path === '..') {
+						path = '';
+					} else {
+						rm = path.match(/^\/?[^\/]*/)[0];
+						path = path.substr(rm.length);
+						out = out + rm;
+					}
+				}
+				return out;
+			}
+
+			if (uri) {
+				this.parse(uri);
+			}
+
+		},
+
+		color: Color,
+	};
+
+	jscolor.install();
+	window.jscolor = jscolor;
+}());
