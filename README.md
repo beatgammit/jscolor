@@ -8,9 +8,15 @@ available.
 installation
 ============
 
+### Include `jscolor2`:
+
     <script type='text/javascript' src='path/to/jscolor.js'>
 
 All assets will be loaded from the directory where `jscolor` is loaded from.
+
+### Add color input elements
+
+    <input type='color'>
 
 license
 =======

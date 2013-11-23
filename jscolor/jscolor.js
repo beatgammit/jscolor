@@ -114,12 +114,6 @@
 		this.pickerInsetColor = 'ThreeDShadow ThreeDHighlight ThreeDHighlight ThreeDShadow'; // CSS color
 		this.pickerZIndex = 10000;
 
-		for (p in prop) {
-			if (prop.hasOwnProperty(p)) {
-				this[p] = prop[p];
-			}
-		}
-
 		modeID = this.pickerMode.toLowerCase() === 'hvs' ? 1 : 0;
 		valueElement = jscolor.fetchElement(this.valueElement);
 		styleElement = jscolor.fetchElement(this.styleElement);
@@ -807,7 +801,6 @@
 
 	jscolor = {
 		dir : '', // location of jscolor directory (leave empty to autodetect)
-		bindClass : 'color', // class name
 		binding : true, // automatic binding via <input class="...">
 		preloading : true, // use image preloading?
 
@@ -860,19 +853,12 @@
 		},
 
 		bind : function () {
-			var matchClass = new RegExp('(^|\\s)(' + jscolor.bindClass + ')\\s*(\\{[^}]*\\})?', 'i'),
-				e = document.getElementsByTagName('input'),
-				i, m, prop;
+			var e = document.getElementsByTagName('input'),
+				i;
 
 			for (i = 0; i < e.length; i++) {
-				if (!e[i].color && e[i].className && (m = e[i].className.match(matchClass))) {
-					prop = {};
-					if (m[3]) {
-						try {
-							prop = JSON.parse(m[3]);
-						} catch (eInvalidProp) {}
-					}
-					e[i].color = new Color(e[i], prop);
+				if (!e[i].color && e[i].getAttribute('type') === 'color') {
+					e[i].color = new Color(e[i]);
 				}
 			}
 		},
