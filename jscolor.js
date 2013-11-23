@@ -79,7 +79,7 @@
 
 	// Usage example:
 	// var myColor = new jscolor.color(myInputElement)
-	function Color(target, prop) {
+	function Color(target) {
 		var p, modeID, valueElement, styleElement, updateField,
 			THIS = this,
 			abortBlur = false,
