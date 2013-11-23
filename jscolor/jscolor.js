@@ -34,6 +34,19 @@
 (function () {
 	'use strict';
 
+	var jscolor,
+		// constants
+		minH = 0, // read-only  0-6
+		maxH = 6, // read-only  0-6
+		minS = 0, // read-only  0-1
+		maxS = 1, // read-only  0-1
+		minV = 0, // read-only  0-1
+		maxV = 1, // read-only  0-1
+		leaveValue = 1 << 0,
+		leaveStyle = 1 << 1,
+		leavePad = 1 << 2,
+		leaveSld = 1 << 3;
+
 	// Usage example:
 	// var myColor = new jscolor.color(myInputElement)
 	function Color(target, prop) {
@@ -42,11 +55,7 @@
 			abortBlur = false,
 			holdPad = false,
 			holdSld = false,
-			touchOffset = {},
-			leaveValue = 1 << 0,
-			leaveStyle = 1 << 1,
-			leavePad = 1 << 2,
-			leaveSld = 1 << 3;
+			touchOffset = {};
 
 		this.required = true; // refuse empty values?
 		this.adjust = true; // adjust value to uniform notation?
@@ -58,12 +67,6 @@
 		this.onImmediateChange = null; // onchange callback (must be a function)
 		this.hsv = [0, 0, 1]; // read-only  0-6, 0-1, 0-1
 		this.rgb = [1, 1, 1]; // read-only  0-1, 0-1, 0-1
-		this.minH = 0; // read-only  0-6
-		this.maxH = 6; // read-only  0-6
-		this.minS = 0; // read-only  0-1
-		this.maxS = 1; // read-only  0-1
-		this.minV = 0; // read-only  0-1
-		this.maxV = 1; // read-only  0-1
 
 		this.pickerOnfocus = true; // display picker on focus?
 		this.pickerMode = 'HSV'; // HSV | HVS
@@ -195,9 +198,9 @@
 		};
 
 		this.fromHSV = function (h, s, v, flags) { // null = don't change
-			if (h !== null) { h = Math.max(0.0, this.minH, Math.min(6.0, this.maxH, h)); }
-			if (s !== null) { s = Math.max(0.0, this.minS, Math.min(1.0, this.maxS, s)); }
-			if (v !== null) { v = Math.max(0.0, this.minV, Math.min(1.0, this.maxV, v)); }
+			if (h !== null) { h = Math.max(0.0, minH, Math.min(6.0, maxH, h)); }
+			if (s !== null) { s = Math.max(0.0, minS, Math.min(1.0, maxS, s)); }
+			if (v !== null) { v = Math.max(0.0, minV, Math.min(1.0, maxV, v)); }
 
 			this.rgb = HSV_RGB(
 				h === null ? this.hsv[0] : (this.hsv[0] = h),
@@ -227,12 +230,12 @@
 				b === null ? this.rgb[2] : b
 			);
 			if (hsv[0] !== null) {
-				this.hsv[0] = Math.max(0.0, this.minH, Math.min(6.0, this.maxH, hsv[0]));
+				this.hsv[0] = Math.max(0.0, minH, Math.min(6.0, maxH, hsv[0]));
 			}
 			if (hsv[2] !== 0) {
-				this.hsv[1] = hsv[1] === null ? null : Math.max(0.0, this.minS, Math.min(1.0, this.maxS, hsv[1]));
+				this.hsv[1] = hsv[1] === null ? null : Math.max(0.0, minS, Math.min(1.0, maxS, hsv[1]));
 			}
-			this.hsv[2] = hsv[2] === null ? null : Math.max(0.0, this.minV, Math.min(1.0, this.maxV, hsv[2]));
+			this.hsv[2] = hsv[2] === null ? null : Math.max(0.0, minV, Math.min(1.0, maxV, hsv[2]));
 
 			// update RGB according to final HSV, as some values might be trimmed
 			rgb = HSV_RGB(this.hsv[0], this.hsv[1], this.hsv[2]);
@@ -772,7 +775,7 @@
 		this.importColor();
 	}
 
-	var jscolor = {
+	jscolor = {
 		dir : '', // location of jscolor directory (leave empty to autodetect)
 		bindClass : 'color', // class name
 		binding : true, // automatic binding via <input class="...">
