@@ -32,10 +32,21 @@
  */
 
 (function () {
+	'use strict';
+
 	// Usage example:
 	// var myColor = new jscolor.color(myInputElement)
 	function Color(target, prop) {
-		var p;
+		var p, modeID, valueElement, styleElement, updateField,
+			THIS = this,
+			abortBlur = false,
+			holdPad = false,
+			holdSld = false,
+			touchOffset = {},
+			leaveValue = 1 << 0,
+			leaveStyle = 1 << 1,
+			leavePad = 1 << 2,
+			leaveSld = 1 << 3;
 
 		this.required = true; // refuse empty values?
 		this.adjust = true; // adjust value to uniform notation?
@@ -70,22 +81,23 @@
 		this.pickerInsetColor = 'ThreeDShadow ThreeDHighlight ThreeDHighlight ThreeDShadow'; // CSS color
 		this.pickerZIndex = 10000;
 
-
 		for (p in prop) {
 			if (prop.hasOwnProperty(p)) {
 				this[p] = prop[p];
 			}
 		}
 
+		modeID = this.pickerMode.toLowerCase() === 'hvs' ? 1 : 0;
+		valueElement = jscolor.fetchElement(this.valueElement);
+		styleElement = jscolor.fetchElement(this.styleElement);
 
-		this.hidePicker = function() {
+		this.hidePicker = function () {
 			if (isPickerOwner()) {
 				removePicker();
 			}
 		};
 
-
-		this.showPicker = function() {
+		this.showPicker = function () {
 			var tp, ts, vp, vs, ps, a, b, c, pp, l;
 
 			if (!isPickerOwner()) {
@@ -95,10 +107,10 @@
 				vs = jscolor.getViewSize(); // view size
 				ps = getPickerDims(this); // picker size
 				switch (this.pickerPosition.toLowerCase()) {
-				case 'left': 
+				case 'left':
 					a = 1;
 					b = 0;
-					c =- 1;
+					c = -1;
 					break;
 				case 'right':
 					a = 1;
@@ -108,7 +120,7 @@
 				case 'top':
 					a = 0;
 					b = 1;
-					c =- 1;
+					c = -1;
 					break;
 				default:
 					a = 0;
@@ -138,8 +150,7 @@
 			}
 		};
 
-
-		this.importColor = function() {
+		this.importColor = function () {
 			if (!valueElement) {
 				this.exportColor();
 			} else {
@@ -157,16 +168,13 @@
 					styleElement.style.color = styleElement.jscStyle.color;
 					this.exportColor(leaveValue | leaveStyle);
 
-				} else if (this.fromString(valueElement.value)) {
-					// OK
-				} else {
+				} else if (!this.fromString(valueElement.value)) {
 					this.exportColor();
 				}
 			}
 		};
 
-
-		this.exportColor = function(flags) {
+		this.exportColor = function (flags) {
 			if (!(flags & leaveValue) && valueElement) {
 				var value = this.toString();
 				if (this.caps) { value = value.toUpperCase(); }
@@ -186,42 +194,48 @@
 			}
 		};
 
-
-		this.fromHSV = function(h, s, v, flags) { // null = don't change
+		this.fromHSV = function (h, s, v, flags) { // null = don't change
 			if (h !== null) { h = Math.max(0.0, this.minH, Math.min(6.0, this.maxH, h)); }
 			if (s !== null) { s = Math.max(0.0, this.minS, Math.min(1.0, this.maxS, s)); }
 			if (v !== null) { v = Math.max(0.0, this.minV, Math.min(1.0, this.maxV, v)); }
 
 			this.rgb = HSV_RGB(
-				h===null ? this.hsv[0] : (this.hsv[0] = h),
-				s===null ? this.hsv[1] : (this.hsv[1] = s),
-				v===null ? this.hsv[2] : (this.hsv[2] = v)
+				h === null ? this.hsv[0] : (this.hsv[0] = h),
+				s === null ? this.hsv[1] : (this.hsv[1] = s),
+				v === null ? this.hsv[2] : (this.hsv[2] = v)
 			);
 
 			this.exportColor(flags);
 		};
 
+		this.fromRGB = function (r, g, b, flags) { // null = don't change
+			var hsv, rgb;
 
-		this.fromRGB = function(r, g, b, flags) { // null = don't change
-			if (r !== null) { r = Math.max(0.0, Math.min(1.0, r)); }
-			if (g !== null) { g = Math.max(0.0, Math.min(1.0, g)); }
-			if (b !== null) { b = Math.max(0.0, Math.min(1.0, b)); }
+			if (r !== null) {
+				r = Math.max(0.0, Math.min(1.0, r));
+			}
+			if (g !== null) {
+				g = Math.max(0.0, Math.min(1.0, g));
+			}
+			if (b !== null) {
+				b = Math.max(0.0, Math.min(1.0, b));
+			}
 
-			var hsv = RGB_HSV(
-				r===null ? this.rgb[0] : r,
-				g===null ? this.rgb[1] : g,
-				b===null ? this.rgb[2] : b
+			hsv = RGB_HSV(
+				r === null ? this.rgb[0] : r,
+				g === null ? this.rgb[1] : g,
+				b === null ? this.rgb[2] : b
 			);
 			if (hsv[0] !== null) {
 				this.hsv[0] = Math.max(0.0, this.minH, Math.min(6.0, this.maxH, hsv[0]));
 			}
 			if (hsv[2] !== 0) {
-				this.hsv[1] = hsv[1]===null ? null : Math.max(0.0, this.minS, Math.min(1.0, this.maxS, hsv[1]));
+				this.hsv[1] = hsv[1] === null ? null : Math.max(0.0, this.minS, Math.min(1.0, this.maxS, hsv[1]));
 			}
-			this.hsv[2] = hsv[2]===null ? null : Math.max(0.0, this.minV, Math.min(1.0, this.maxV, hsv[2]));
+			this.hsv[2] = hsv[2] === null ? null : Math.max(0.0, this.minV, Math.min(1.0, this.maxV, hsv[2]));
 
 			// update RGB according to final HSV, as some values might be trimmed
-			var rgb = HSV_RGB(this.hsv[0], this.hsv[1], this.hsv[2]);
+			rgb = HSV_RGB(this.hsv[0], this.hsv[1], this.hsv[2]);
 			this.rgb[0] = rgb[0];
 			this.rgb[1] = rgb[1];
 			this.rgb[2] = rgb[2];
@@ -229,24 +243,23 @@
 			this.exportColor(flags);
 		};
 
-
-		this.fromString = function(hex, flags) {
+		this.fromString = function (hex, flags) {
 			var m = hex.match(/^\W*([0-9A-F]{3}([0-9A-F]{3})?)\W*$/i);
 			if (!m) {
 				return false;
 			} else {
 				if (m[1].length === 6) { // 6-char notation
 					this.fromRGB(
-						parseInt(m[1].substr(0,2),16) / 255,
-						parseInt(m[1].substr(2,2),16) / 255,
-						parseInt(m[1].substr(4,2),16) / 255,
+						parseInt(m[1].substr(0, 2), 16) / 255,
+						parseInt(m[1].substr(2, 2), 16) / 255,
+						parseInt(m[1].substr(4, 2), 16) / 255,
 						flags
 					);
 				} else { // 3-char notation
 					this.fromRGB(
-						parseInt(m[1].charAt(0) + m[1].charAt(0),16) / 255,
-						parseInt(m[1].charAt(1) + m[1].charAt(1),16) / 255,
-						parseInt(m[1].charAt(2) + m[1].charAt(2),16) / 255,
+						parseInt(m[1].charAt(0) + m[1].charAt(0), 16) / 255,
+						parseInt(m[1].charAt(1) + m[1].charAt(1), 16) / 255,
+						parseInt(m[1].charAt(2) + m[1].charAt(2), 16) / 255,
 						flags
 					);
 				}
@@ -254,8 +267,7 @@
 			}
 		};
 
-
-		this.toString = function() {
+		this.toString = function () {
 			return (
 				(0x100 | Math.round(255 * this.rgb[0])).toString(16).substr(1) +
 				(0x100 | Math.round(255 * this.rgb[1])).toString(16).substr(1) +
@@ -263,43 +275,53 @@
 			);
 		};
 
-
 		function RGB_HSV(r, g, b) {
-			var n = Math.min(Math.min(r,g),b);
-			var v = Math.max(Math.max(r,g),b);
-			var m = v - n;
-			if (m === 0) { return [ null, 0, v ]; }
-			var h = r===n ? 3 + (b - g) / m : (g===n ? 5 + (r - b) / m : 1 + (g - r) / m);
-			return [ h===6?0:h, m / v, v ];
-		}
+			var n = Math.min(Math.min(r, g), b),
+				v = Math.max(Math.max(r, g), b),
+				m = v - n,
+				h;
 
+			if (m === 0) {
+				return [ null, 0, v ];
+			}
+			h = r === n ? 3 + (b - g) / m : (g === n ? 5 + (r - b) / m : 1 + (g - r) / m);
+			return [ h === 6 ? 0 : h, m / v, v ];
+		}
 
 		function HSV_RGB(h, s, v) {
-			if (h === null) { return [ v, v, v ]; }
-			var i = Math.floor(h);
-			var f = i%2 ? h - i : 1 - (h - i);
-			var m = v * (1 - s);
-			var n = v * (1 - s * f);
+			var i, f, m, n;
+
+			if (h === null) {
+				return [ v, v, v ];
+			}
+			i = Math.floor(h);
+			f = i % 2 ? h - i : 1 - (h - i);
+			m = v * (1 - s);
+			n = v * (1 - s * f);
 			switch (i) {
-				case 6:
-				case 0: return [v,n,m];
-				case 1: return [n,v,m];
-				case 2: return [m,v,n];
-				case 3: return [m,n,v];
-				case 4: return [n,m,v];
-				case 5: return [v,m,n];
+			case 6:
+			case 0:
+				return [v, n, m];
+			case 1:
+				return [n, v, m];
+			case 2:
+				return [m, v, n];
+			case 3:
+				return [m, n, v];
+			case 4:
+				return [n, m, v];
+			case 5:
+				return [v, m, n];
 			}
 		}
-
 
 		function removePicker() {
 			delete jscolor.picker.owner;
 			document.getElementsByTagName('body')[0].removeChild(jscolor.picker.boxB);
 		}
 
-
 		function drawPicker(x, y) {
-			var padImg, seg, p;
+			var padImg, seg, p, i, segSize, dims;
 
 			if (!jscolor.picker) {
 				jscolor.picker = {
@@ -315,7 +337,7 @@
 					btnS : document.createElement('span'),
 					btnT : document.createTextNode(THIS.pickerCloseText)
 				};
-				for (var i = 0,segSize = 4; i<jscolor.images.sld[1]; i+=segSize) {
+				for (i = 0, segSize = 4; i < jscolor.images.sld[1]; i += segSize) {
 					seg = document.createElement('div');
 					seg.style.height = segSize + 'px';
 					seg.style.fontSize = '1px';
@@ -338,9 +360,9 @@
 
 			// controls interaction
 			p.box.onmouseup =
-			p.box.onmouseout = function() { target.focus(); };
-			p.box.onmousedown = function() { abortBlur = true; };
-			p.box.onmousemove = function(e) {
+			p.box.onmouseout = function () { target.focus(); };
+			p.box.onmousedown = function () { abortBlur = true; };
+			p.box.onmousemove = function (e) {
 				if (holdPad || holdSld) {
 					if (holdPad) {
 						setPad(e);
@@ -357,7 +379,7 @@
 				}
 			};
 			if ('ontouchstart' in window) { // if touch device
-				p.box.addEventListener('touchmove', function(e) {
+				p.box.addEventListener('touchmove', function (e) {
 					var event = {
 						'offsetX': e.touches[0].pageX - touchOffset.X,
 						'offsetY': e.touches[0].pageY - touchOffset.Y
@@ -375,9 +397,13 @@
 					e.preventDefault(); // prevent Default - Android Fix (else android generated only 1-2 touchmove events)
 				}, false);
 			}
-			p.padM.onmouseup =
-			p.padM.onmouseout = function() { if (holdPad) { holdPad = false; jscolor.fireEvent(valueElement,'change'); } };
-			p.padM.onmousedown = function(e) {
+			p.padM.onmouseup = p.padM.onmouseout = function () {
+				if (holdPad) {
+					holdPad = false;
+					jscolor.fireEvent(valueElement, 'change');
+				}
+			};
+			p.padM.onmousedown = function (e) {
 				// if the slider is at the bottom, move it up
 				switch (modeID) {
 				case 0:
@@ -397,40 +423,44 @@
 				dispatchImmediateChange();
 			};
 			if ('ontouchstart' in window) {
-				p.padM.addEventListener('touchstart', function(e) {
+				p.padM.addEventListener('touchstart', function (e) {
 					touchOffset = {
 						'X': e.target.offsetParent.offsetLeft,
 						'Y': e.target.offsetParent.offsetTop
 					};
 					this.onmousedown({
-						'offsetX':e.touches[0].pageX - touchOffset.X,
-						'offsetY':e.touches[0].pageY - touchOffset.Y
+						'offsetX': e.touches[0].pageX - touchOffset.X,
+						'offsetY': e.touches[0].pageY - touchOffset.Y
 					});
 				});
 			}
-			p.sldM.onmouseup =
-			p.sldM.onmouseout = function() { if (holdSld) { holdSld = false; jscolor.fireEvent(valueElement,'change'); } };
-			p.sldM.onmousedown = function(e) {
+			p.sldM.onmouseup = p.sldM.onmouseout = function () {
+				if (holdSld) {
+					holdSld = false;
+					jscolor.fireEvent(valueElement, 'change');
+				}
+			};
+			p.sldM.onmousedown = function (e) {
 				holdPad = false;
 				holdSld = true;
 				setSld(e);
 				dispatchImmediateChange();
 			};
 			if ('ontouchstart' in window) {
-				p.sldM.addEventListener('touchstart', function(e) {
+				p.sldM.addEventListener('touchstart', function (e) {
 					touchOffset = {
 						'X': e.target.offsetParent.offsetLeft,
 						'Y': e.target.offsetParent.offsetTop
 					};
 					this.onmousedown({
-						'offsetX':e.touches[0].pageX - touchOffset.X,
-						'offsetY':e.touches[0].pageY - touchOffset.Y
+						'offsetX': e.touches[0].pageX - touchOffset.X,
+						'offsetY': e.touches[0].pageY - touchOffset.Y
 					});
 				});
 			}
 
 			// picker
-			var dims = getPickerDims(THIS);
+			dims = getPickerDims(THIS);
 			p.box.style.width = dims[0] + 'px';
 			p.box.style.height = dims[1] + 'px';
 
@@ -485,14 +515,14 @@
 			p.sldM.style.height = p.box.style.height;
 			try {
 				p.sldM.style.cursor = 'pointer';
-			} catch(eOldIE) {
+			} catch (eOldIE) {
 				p.sldM.style.cursor = 'hand';
 			}
 
 			// "close" button
 			function setBtnBorder() {
-				var insetColors = THIS.pickerInsetColor.split(/\s+/);
-				var pickerOutsetColor = insetColors.length < 2 ? insetColors[0] : insetColors[1] + ' ' + insetColors[0] + ' ' + insetColors[0] + ' ' + insetColors[1];
+				var insetColors = THIS.pickerInsetColor.split(/\s+/),
+					pickerOutsetColor = insetColors.length < 2 ? insetColors[0] : insetColors[1] + ' ' + insetColors[0] + ' ' + insetColors[0] + ' ' + insetColors[1];
 				p.btn.style.borderColor = pickerOutsetColor;
 			}
 			p.btn.style.display = THIS.pickerClosable ? 'block' : 'none';
@@ -508,7 +538,7 @@
 			p.btn.style.textAlign = 'center';
 			try {
 				p.btn.style.cursor = 'pointer';
-			} catch(eOldIE) {
+			} catch (eOldIE) {
 				p.btn.style.cursor = 'hand';
 			}
 			p.btn.onmousedown = function () {
@@ -541,7 +571,6 @@
 			document.getElementsByTagName('body')[0].appendChild(p.boxB);
 		}
 
-
 		function getPickerDims(o) {
 			var dims = [
 				2 * o.pickerInset + 2 * o.pickerFace + jscolor.images.pad[0] +
@@ -553,9 +582,8 @@
 			return dims;
 		}
 
-
 		function redrawPad() {
-			var i, yComponent, rgb, s, c, seg, x, y;
+			var i, yComponent, rgb, s, c, seg, x, y, f;
 
 			// redraw the pad pointer
 			switch (modeID) {
@@ -579,7 +607,7 @@
 			case 0:
 				rgb = HSV_RGB(THIS.hsv[0], THIS.hsv[1], 1);
 				for (i = 0; i < seg.length; i++) {
-					seg[i].style.backgroundColor = 'rgb('+
+					seg[i].style.backgroundColor = 'rgb(' +
 						(rgb[0] * (1 - i / seg.length) * 100) + '%,' +
 						(rgb[1] * (1 - i / seg.length) * 100) + '%,' +
 						(rgb[2] * (1 - i / seg.length) * 100) + '%)';
@@ -588,26 +616,26 @@
 			case 1:
 				c = [ THIS.hsv[2], 0, 0 ];
 				i = Math.floor(THIS.hsv[0]);
-				var f = i%2 ? THIS.hsv[0] - i : 1 - (THIS.hsv[0] - i);
+				f = i % 2 ? THIS.hsv[0] - i : 1 - (THIS.hsv[0] - i);
 				switch (i) {
 				case 6:
 				case 0:
-					rgb = [0,1,2];
+					rgb = [0, 1, 2];
 					break;
 				case 1:
-					rgb = [1,0,2];
+					rgb = [1, 0, 2];
 					break;
 				case 2:
-					rgb = [2,0,1];
+					rgb = [2, 0, 1];
 					break;
 				case 3:
-					rgb = [2,1,0];
+					rgb = [2, 1, 0];
 					break;
 				case 4:
-					rgb = [1,2,0];
+					rgb = [1, 2, 0];
 					break;
 				case 5:
-					rgb = [0,2,1];
+					rgb = [0, 2, 1];
 					break;
 				}
 				for (i = 0; i < seg.length; i++) {
@@ -657,9 +685,10 @@
 		}
 
 		function setPad(e) {
-			var mpos = jscolor.getRelMousePos(e);
-			var x = mpos.x - THIS.pickerFace - THIS.pickerInset;
-			var y = mpos.y - THIS.pickerFace - THIS.pickerInset;
+			var mpos = jscolor.getRelMousePos(e),
+				x = mpos.x - THIS.pickerFace - THIS.pickerInset,
+				y = mpos.y - THIS.pickerFace - THIS.pickerInset;
+
 			switch (modeID) {
 			case 0:
 				THIS.fromHSV(x * (6 / (jscolor.images.pad[0] - 1)), 1 - y / (jscolor.images.pad[1] - 1), null, leaveSld);
@@ -671,8 +700,9 @@
 		}
 
 		function setSld(e) {
-			var mpos = jscolor.getRelMousePos(e);
-			var y = mpos.y - THIS.pickerFace - THIS.pickerInset;
+			var mpos = jscolor.getRelMousePos(e),
+				y = mpos.y - THIS.pickerFace - THIS.pickerInset;
+
 			switch (modeID) {
 			case 0:
 				THIS.fromHSV(null, null, 1 - y / (jscolor.images.sld[1] - 1), leavePad);
@@ -689,29 +719,13 @@
 			}
 		}
 
-		var THIS = this;
-		var modeID = this.pickerMode.toLowerCase()==='hvs' ? 1 : 0;
-		var abortBlur = false;
-		var
-			valueElement = jscolor.fetchElement(this.valueElement),
-			styleElement = jscolor.fetchElement(this.styleElement);
-		var
-			holdPad = false,
-			holdSld = false,
-			touchOffset = {};
-		var
-			leaveValue = 1<<0,
-			leaveStyle = 1<<1,
-			leavePad = 1<<2,
-			leaveSld = 1<<3;
-
 		// target
-		jscolor.addEvent(target, 'focus', function() {
+		jscolor.addEvent(target, 'focus', function () {
 			if (THIS.pickerOnfocus) { THIS.showPicker(); }
 		});
-		jscolor.addEvent(target, 'blur', function() {
+		jscolor.addEvent(target, 'blur', function () {
 			if (!abortBlur) {
-				window.setTimeout(function(){
+				window.setTimeout(function () {
 					if (!abortBlur) {
 						blurTarget();
 					}
@@ -724,7 +738,7 @@
 
 		// valueElement
 		if (valueElement) {
-			var updateField = function() {
+			updateField = function () {
 				THIS.fromString(valueElement.value, leaveValue);
 				dispatchImmediateChange();
 			};
@@ -764,11 +778,11 @@
 		binding : true, // automatic binding via <input class="...">
 		preloading : true, // use image preloading?
 
-		install : function() {
+		install : function () {
 			jscolor.addEvent(window, 'load', jscolor.init);
 		},
 
-		init : function() {
+		init : function () {
 			if (jscolor.binding) {
 				jscolor.bind();
 			}
@@ -777,30 +791,32 @@
 			}
 		},
 
-		getDir : function() {
+		getDir : function () {
 			var detected;
 
 			if (!jscolor.dir) {
 				detected = jscolor.detectDir();
-				jscolor.dir = detected!==false ? detected : 'jscolor/';
+				jscolor.dir = detected !== false ? detected : 'jscolor/';
 			}
 			return jscolor.dir;
 		},
 
-		detectDir : function() {
+		detectDir : function () {
 			var base = location.href,
 				e = document.getElementsByTagName('base'),
-				i;
+				i, src, srcAbs;
 
 			for (i = 0; i < e.length; i++) {
-				if (e[i].href) { base = e[i].href; }
+				if (e[i].href) {
+					base = e[i].href;
+				}
 			}
 
 			e = document.getElementsByTagName('script');
 			for (i = 0; i < e.length; i++) {
 				if (e[i].src && /(^|\/)jscolor\.js([?#].*)?$/i.test(e[i].src)) {
-					var src = new jscolor.URI(e[i].src);
-					var srcAbs = src.toAbsolute(base);
+					src = new jscolor.URI(e[i].src);
+					srcAbs = src.toAbsolute(base);
 					srcAbs.path = srcAbs.path.replace(/[^\/]+$/, ''); // remove filename
 					srcAbs.query = null;
 					srcAbs.fragment = null;
@@ -810,7 +826,7 @@
 			return false;
 		},
 
-		bind : function() {
+		bind : function () {
 			var matchClass = new RegExp('(^|\\s)(' + jscolor.bindClass + ')\\s*(\\{[^}]*\\})?', 'i'),
 				e = document.getElementsByTagName('input'),
 				i, m, prop;
@@ -821,14 +837,14 @@
 					if (m[3]) {
 						try {
 							prop = JSON.parse(m[3]);
-						} catch(eInvalidProp) {}
+						} catch (eInvalidProp) {}
 					}
 					e[i].color = new Color(e[i], prop);
 				}
 			}
 		},
 
-		preload : function() {
+		preload : function () {
 			var fn;
 
 			for (fn in jscolor.imgRequire) {
@@ -848,22 +864,22 @@
 		imgRequire : {},
 		imgLoaded : {},
 
-		requireImage : function(filename) {
+		requireImage : function (filename) {
 			jscolor.imgRequire[filename] = true;
 		},
 
-		loadImage : function(filename) {
+		loadImage : function (filename) {
 			if (!jscolor.imgLoaded[filename]) {
 				jscolor.imgLoaded[filename] = new Image();
 				jscolor.imgLoaded[filename].src = jscolor.getDir() + filename;
 			}
 		},
 
-		fetchElement : function(mixed) {
+		fetchElement : function (mixed) {
 			return typeof mixed === 'string' ? document.getElementById(mixed) : mixed;
 		},
 
-		addEvent : function(el, evnt, func) {
+		addEvent : function (el, evnt, func) {
 			if (el.addEventListener) {
 				el.addEventListener(evnt, func, false);
 			} else if (el.attachEvent) {
@@ -871,7 +887,7 @@
 			}
 		},
 
-		fireEvent : function(el, evnt) {
+		fireEvent : function (el, evnt) {
 			var ev;
 
 			if (!el) {
@@ -889,7 +905,7 @@
 			}
 		},
 
-		getElementPos : function(e) {
+		getElementPos : function (e) {
 			var e1 = e, e2 = e,
 				x = 0, y = 0;
 
@@ -908,11 +924,11 @@
 			return [x, y];
 		},
 
-		getElementSize : function(e) {
+		getElementSize : function (e) {
 			return [e.offsetWidth, e.offsetHeight];
 		},
 
-		getRelMousePos : function(e) {
+		getRelMousePos : function (e) {
 			var x = 0, y = 0;
 
 			if (!e) {
@@ -928,7 +944,7 @@
 			return { x: x, y: y };
 		},
 
-		getViewPos : function() {
+		getViewPos : function () {
 			if (typeof window.pageYOffset === 'number') {
 				return [window.pageXOffset, window.pageYOffset];
 			} else if (document.body && (document.body.scrollLeft || document.body.scrollTop)) {
@@ -940,7 +956,7 @@
 			}
 		},
 
-		getViewSize : function() {
+		getViewSize : function () {
 			if (typeof window.innerWidth === 'number') {
 				return [window.innerWidth, window.innerHeight];
 			} else if (document.body && (document.body.clientWidth || document.body.clientHeight)) {
@@ -952,14 +968,14 @@
 			}
 		},
 
-		URI : function(uri) { // See RFC3986
+		URI : function (uri) { // See RFC3986
 			this.scheme = null;
 			this.authority = null;
 			this.path = '';
 			this.query = null;
 			this.fragment = null;
 
-			this.parse = function(uri) {
+			this.parse = function (uri) {
 				var m = uri.match(/^(([A-Za-z][0-9A-Za-z+.-]*)(:))?((\/\/)([^\/?#]*))?([^?#]*)((\?)([^#]*))?((#)(.*))?/);
 
 				this.scheme = m[3] ? m[2] : null;
@@ -970,7 +986,7 @@
 				return this;
 			};
 
-			this.toString = function() {
+			this.toString = function () {
 				var result = '';
 
 				if (this.scheme !== null) {
@@ -991,7 +1007,7 @@
 				return result;
 			};
 
-			this.toAbsolute = function(base) {
+			this.toAbsolute = function (base) {
 				var r = this,
 					t = new jscolor.URI();
 
@@ -1023,13 +1039,13 @@
 								t.query = base.query;
 							}
 						} else {
-							if (r.path.substr(0,1) === '/') {
+							if (r.path.substr(0, 1) === '/') {
 								t.path = removeDotSegments(r.path);
 							} else {
 								if (base.authority !== null && base.path === '') {
 									t.path = '/' + r.path;
 								} else {
-									t.path = base.path.replace(/[^\/]+$/,'') + r.path;
+									t.path = base.path.replace(/[^\/]+$/, '') + r.path;
 								}
 								t.path = removeDotSegments(t.path);
 							}
@@ -1049,11 +1065,11 @@
 					rm;
 
 				while (path) {
-					if (path.substr(0,3) === '../' || path.substr(0,2) === './') {
-						path = path.replace(/^\.+/,'').substr(1);
-					} else if (path.substr(0,3)==='/./' || path==='/.') {
+					if (path.substr(0, 3) === '../' || path.substr(0, 2) === './') {
+						path = path.replace(/^\.+/, '').substr(1);
+					} else if (path.substr(0, 3) === '/./' || path === '/.') {
 						path = '/' + path.substr(3);
-					} else if (path.substr(0,4) === '/../' || path === '/..') {
+					} else if (path.substr(0, 4) === '/../' || path === '/..') {
 						path = '/' + path.substr(4);
 						out = out.replace(/\/?[^\/]*$/, '');
 					} else if (path === '.' || path === '..') {
