@@ -47,6 +47,36 @@
 		leavePad = 1 << 2,
 		leaveSld = 1 << 3;
 
+	// adapted from Modernizer: github.com/Modernizr/Modernizer
+	// BSD-licensed
+	function supportsColorInput() {
+		var inputElem = document.createElement('input'),
+			docElement = document.documentElement,
+			smile = ':)',
+			bool,
+			_;
+
+		inputElem.setAttribute('type', 'color');
+		bool = inputElem.type !== 'text';
+
+		// We first check to see if the type we give it sticks..
+		// If the type does, we feed it a textual value, which shouldn't be valid.
+		// If the value doesn't stick, we know there's input sanitization which infers a custom UI
+		if (bool) {
+			inputElem.value = smile;
+			inputElem.style.cssText = 'position:absolute;visibility:hidden;';
+
+			// chuck into DOM and force reflow for Opera bug in 11.00
+			// github.com/Modernizr/Modernizr/issues#issue/159
+			docElement.appendChild(inputElem);
+			_ = docElement.offsetWidth;
+			bool = inputElem.value !== smile;
+			docElement.removeChild(inputElem);
+		}
+
+		return bool;
+	}
+
 	// Usage example:
 	// var myColor = new jscolor.color(myInputElement)
 	function Color(target, prop) {
@@ -1095,6 +1125,9 @@
 		color: Color,
 	};
 
-	jscolor.install();
-	window.jscolor = jscolor;
+	// do nothing if color input is supported
+	if (!supportsColorInput()) {
+		jscolor.install();
+		window.jscolor = jscolor;
+	}
 }());
